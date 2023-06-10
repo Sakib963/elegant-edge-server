@@ -1,7 +1,7 @@
 const express = require("express");
 const cors = require("cors");
 require("dotenv").config();
-const { MongoClient, ServerApiVersion } = require("mongodb");
+const { MongoClient, ServerApiVersion, ObjectId } = require("mongodb");
 const jwt = require("jsonwebtoken");
 
 const app = express();
@@ -53,8 +53,13 @@ async function run() {
     await client.connect();
 
     const usersCollection = client.db("elegantEdgeDB").collection("users");
-    const instructorsCollection = client.db('elegantEdgeDB').collection('instructors');
-    const classesCollection = client.db('elegantEdgeDB').collection('classes');
+    const instructorsCollection = client
+      .db("elegantEdgeDB")
+      .collection("instructors");
+    const classesCollection = client.db("elegantEdgeDB").collection("classes");
+    const selectedClassCollection = client
+      .db("elegantEdgeDB")
+      .collection("selectedClass");
 
     //  JWT
     app.post("/jwt", (req, res) => {
@@ -79,23 +84,44 @@ async function run() {
       res.send(result);
     });
 
-    app.get('/user', async(req, res) => {
+    app.get("/user", async (req, res) => {
       const result = await usersCollection.find().toArray();
       res.send(result);
-    })
+    });
 
     // Instructors
-    app.get('/instructors', async(req, res) => {
+    app.get("/instructors", async (req, res) => {
       const result = await instructorsCollection.find().toArray();
 
       res.send(result);
-    })
+    });
+
+    app.get("/instructors/:id", async (req, res) => {
+      const id = req.params.id;
+      const filter = { _id: new ObjectId(id) };
+      const result = await instructorsCollection.findOne(filter);
+      res.send(result);
+    });
+
+    // Selected Class
+    app.post("/selectclass", async (req, res) => {
+      const item = req.body;
+      const result = await selectedClassCollection.insertOne(item);
+      res.send(result);
+    });
 
     // Classes
-    app.get('/classes', async(req, res) => {
-      const result = await classesCollection.find().toArray();
+    app.get("/classes", async (req, res) => {
+      const email = req.query.email;
+      if (!email) {
+        const result = await classesCollection.find().toArray();
+        res.send(result);
+        return;
+      }
+      const filter = { email: email };
+      const result = await classesCollection.find(filter).toArray();
       res.send(result);
-    })
+    });
 
     // Send a ping to confirm a successful connection
     await client.db("admin").command({ ping: 1 });
