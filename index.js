@@ -128,6 +128,13 @@ async function run() {
       res.send(result);
     });
 
+    app.delete("/selectclass/:id", async (req, res) => {
+      const id = req.params.id;
+      const query = { _id: new ObjectId(id) };
+      const result = await selectedClassCollection.deleteOne(query);
+      res.send(result);
+    });
+
     // Classes
     app.get("/classes", async (req, res) => {
       const email = req.query.email;
