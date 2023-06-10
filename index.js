@@ -110,6 +110,24 @@ async function run() {
       res.send(result);
     });
 
+    app.get("/selectclass", verifyJWT, async (req, res) => {
+      const email = req.query.email;
+      if (!email) {
+        res.send([]);
+      }
+
+      const decodedEmail = req.decoded.email;
+
+      if (email !== decodedEmail) {
+        res.status(403).send({ error: true, message: "Forbidden Access." });
+      }
+
+      const filter = { userEmail: email };
+
+      const result = await selectedClassCollection.find(filter).toArray();
+      res.send(result);
+    });
+
     // Classes
     app.get("/classes", async (req, res) => {
       const email = req.query.email;
