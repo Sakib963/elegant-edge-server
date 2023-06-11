@@ -202,6 +202,15 @@ async function run() {
       res.send(classes);
     });
 
+    // TODO: SEARCH WITH EMAIL
+    app.get("/payment-history", async (req, res) => {
+      const email = req.query.email;
+      const filter = { user: email };
+      const result = await paymentCollection.find(filter).toArray();
+      result.sort((a, b) => new Date(b.date) - new Date(a.date));
+      res.send(result);
+    });
+
     // PAYMENT GATEWAY API
     app.post("/create-payment-intent", verifyJWT, async (req, res) => {
       const { price } = req.body;
