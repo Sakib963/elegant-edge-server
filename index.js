@@ -167,8 +167,39 @@ async function run() {
       const filter = { _id: new ObjectId(selectedClassId) };
       const deleteResult = await selectedClassCollection.deleteOne(filter);
 
+      const classId = payment.courseId;
+      const query = { _id: new ObjectId(classId) };
+      const doc = await classesCollection.findOne(query);
+
+      const update = {
+        $inc: {
+          available_seats: -1,
+          total_students: 1,
+        },
+      };
+      const updateResult = await classesCollection.updateOne(query, update);
+
       const insertResult = await paymentCollection.insertOne(payment);
       res.send({ insertResult, deleteResult });
+    });
+
+    app.get("/payments", verifyJWT, async (req, res) => {
+      const email = req.query.email;
+      console.log(email);
+      const filter = {
+        user: email,
+      };
+      const result = await paymentCollection.find(filter).toArray();
+      const courseIds = result.map((item) => item.courseId);
+      const filterClasses = {
+        _id: {
+          $in: courseIds.map((id) => new ObjectId(id)),
+        },
+      };
+      console.log(courseIds);
+      const classes = await classesCollection.find(filterClasses).toArray();
+      console.log(classes);
+      res.send(classes);
     });
 
     // PAYMENT GATEWAY API
