@@ -4,6 +4,8 @@ require("dotenv").config();
 const { MongoClient, ServerApiVersion, ObjectId } = require("mongodb");
 const jwt = require("jsonwebtoken");
 
+const stripe = require("stripe")(process.env.PAYMENT_GATEWAY_SECRET_KEY);
+
 const app = express();
 const port = process.env.PORT || 5000;
 
@@ -57,6 +59,7 @@ async function run() {
       .db("elegantEdgeDB")
       .collection("instructors");
     const classesCollection = client.db("elegantEdgeDB").collection("classes");
+    const paymentCollection = client.db("elegantEdgeDB").collection("payments");
     const selectedClassCollection = client
       .db("elegantEdgeDB")
       .collection("selectedClass");
@@ -128,6 +131,13 @@ async function run() {
       res.send(result);
     });
 
+    app.get("/selectclass/:id", async (req, res) => {
+      const id = req.params.id;
+      const query = { _id: new ObjectId(id) };
+      const result = await selectedClassCollection.findOne(query);
+      res.send(result);
+    });
+
     app.delete("/selectclass/:id", async (req, res) => {
       const id = req.params.id;
       const query = { _id: new ObjectId(id) };
@@ -146,6 +156,34 @@ async function run() {
       const filter = { email: email };
       const result = await classesCollection.find(filter).toArray();
       res.send(result);
+    });
+
+    // PAYMENT
+    app.post("/payments", verifyJWT, async (req, res) => {
+      const payment = req.body;
+      console.log(payment);
+      const selectedClassId = payment.selectedClassId;
+
+      const filter = { _id: new ObjectId(selectedClassId) };
+      const deleteResult = await selectedClassCollection.deleteOne(filter);
+
+      const insertResult = await paymentCollection.insertOne(payment);
+      res.send({ insertResult, deleteResult });
+    });
+
+    // PAYMENT GATEWAY API
+    app.post("/create-payment-intent", verifyJWT, async (req, res) => {
+      const { price } = req.body;
+      const amount = parseInt(price * 100);
+      const paymentIntent = await stripe.paymentIntents.create({
+        amount: amount,
+        currency: "usd",
+        payment_method_types: ["card"],
+      });
+
+      res.send({
+        clientSecret: paymentIntent.client_secret,
+      });
     });
 
     // Send a ping to confirm a successful connection
