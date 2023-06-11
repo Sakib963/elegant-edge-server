@@ -64,6 +64,18 @@ async function run() {
       .db("elegantEdgeDB")
       .collection("selectedClass");
 
+    const verifyAdmin = async (req, res, next) => {
+      const email = req.decoded.email;
+      const query = { email: email };
+      const user = await usersCollection.findOne(query);
+      if (user?.role !== "admin") {
+        return res
+          .status(403)
+          .send({ error: true, message: "Forbidden Access." });
+      }
+      next();
+    };
+
     //  JWT
     app.post("/jwt", (req, res) => {
       const user = req.body;
@@ -72,6 +84,12 @@ async function run() {
       });
 
       res.send({ token });
+    });
+
+    //  User Collection
+    app.get("/users", verifyJWT, verifyAdmin, async (req, res) => {
+      const result = await usersCollection.find().toArray();
+      res.send(result);
     });
 
     // Create User
@@ -84,6 +102,32 @@ async function run() {
         return res.send({ message: "User Already Exists" });
       }
       const result = await usersCollection.insertOne(userInfo);
+      res.send(result);
+    });
+
+    app.patch("/users/admin/:id", async (req, res) => {
+      const query = { _id: new ObjectId(req.params.id) };
+      const options = { upsert: true };
+
+      const updateDoc = {
+        $set: {
+          role: "admin",
+        },
+      };
+      const result = await usersCollection.updateOne(query, updateDoc, options);
+      res.send(result);
+    });
+
+    app.patch("/users/instructor/:id", async (req, res) => {
+      const query = { _id: new ObjectId(req.params.id) };
+      const options = { upsert: true };
+
+      const updateDoc = {
+        $set: {
+          role: "instructor",
+        },
+      };
+      const result = await usersCollection.updateOne(query, updateDoc, options);
       res.send(result);
     });
 
