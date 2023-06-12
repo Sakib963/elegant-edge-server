@@ -107,6 +107,11 @@ async function run() {
 
     app.patch("/users/admin/:id", async (req, res) => {
       const query = { _id: new ObjectId(req.params.id) };
+      const findResult = await usersCollection.findOne(query);
+      const instructorResult = await instructorsCollection.deleteOne({
+        email: findResult.email,
+      });
+
       const options = { upsert: true };
 
       const updateDoc = {
@@ -114,12 +119,15 @@ async function run() {
           role: "admin",
         },
       };
+
       const result = await usersCollection.updateOne(query, updateDoc, options);
       res.send(result);
     });
 
     app.patch("/users/instructor/:id", async (req, res) => {
       const query = { _id: new ObjectId(req.params.id) };
+      const instructor = req.body;
+      console.log(instructor);
       const options = { upsert: true };
 
       const updateDoc = {
@@ -127,6 +135,7 @@ async function run() {
           role: "instructor",
         },
       };
+      const insertResult = await instructorsCollection.insertOne(instructor);
       const result = await usersCollection.updateOne(query, updateDoc, options);
       res.send(result);
     });
@@ -227,6 +236,21 @@ async function run() {
       }
       const filter = { email: email };
       const result = await classesCollection.find(filter).toArray();
+      res.send(result);
+    });
+
+    app.post("/createClass", async (req, res) => {
+      const classBody = req.body;
+      const query = { email: classBody.email };
+      const doc = await instructorsCollection.findOne(query);
+
+      const update = {
+        $inc: {
+          classes: 1,
+        },
+      };
+      const updateResult = await instructorsCollection.updateOne(query, update);
+      const result = await classesCollection.insertOne(classBody);
       res.send(result);
     });
 
