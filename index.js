@@ -229,19 +229,65 @@ async function run() {
     // Classes
     app.get("/classes", async (req, res) => {
       const email = req.query.email;
+      console.log("Hello Classes");
       if (!email) {
-        const result = await classesCollection.find().toArray();
+        const result = await classesCollection
+          .find({ status: "approved" })
+          .toArray();
+        console.log(result);
         res.send(result);
         return;
       }
+      const filter = { email: email, status: "approved" };
+      const result = await classesCollection.find(filter).toArray();
+      console.log(result);
+      res.send(result);
+    });
+
+    app.get("/myclasses", async (req, res) => {
+      const email = req.query.email;
+      console.log(email);
       const filter = { email: email };
       const result = await classesCollection.find(filter).toArray();
+      console.log(result);
+      res.send(result);
+    });
+
+    app.get("/myclasses/:id", async (req, res) => {
+      const id = req.params.id;
+      const filter = { _id: new ObjectId(id) };
+      const result = await classesCollection.findOne(filter);
+      res.send(result);
+    });
+
+    app.patch("/createClass/:id", async (req, res) => {
+      const id = req.params.id;
+      const updatedClass = req.body;
+      const filter = { _id: new ObjectId(id) };
+      const updateDoc = {
+        $set: {
+          name: updatedClass.name,
+          image: updatedClass.image,
+          instructor: updatedClass.instructor,
+          email: updatedClass.email,
+          available_seats: updatedClass.available_seats,
+          price: updatedClass.price,
+          total_students: updatedClass.total_students,
+          status: updatedClass.status,
+        },
+      };
+      const options = { upsert: true };
+      const result = await classesCollection.updateOne(
+        filter,
+        updateDoc,
+        options
+      );
       res.send(result);
     });
 
     app.post("/createClass", async (req, res) => {
       const classBody = req.body;
-      const query = { email: classBody.email };
+      /* const query = { email: classBody.email };
       const doc = await instructorsCollection.findOne(query);
 
       const update = {
@@ -249,7 +295,7 @@ async function run() {
           classes: 1,
         },
       };
-      const updateResult = await instructorsCollection.updateOne(query, update);
+      const updateResult = await instructorsCollection.updateOne(query, update); */
       const result = await classesCollection.insertOne(classBody);
       res.send(result);
     });
