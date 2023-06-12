@@ -175,7 +175,10 @@ async function run() {
 
     // Instructors
     app.get("/instructors", async (req, res) => {
-      const result = await instructorsCollection.find().toArray();
+      const result = await instructorsCollection
+        .find()
+        .sort({ total_students: -1 })
+        .toArray();
 
       res.send(result);
     });
@@ -233,14 +236,13 @@ async function run() {
       if (!email) {
         const result = await classesCollection
           .find({ status: "approved" })
+          .sort({ total_students: -1 })
           .toArray();
-        console.log(result);
         res.send(result);
         return;
       }
       const filter = { email: email, status: "approved" };
       const result = await classesCollection.find(filter).toArray();
-      console.log(result);
       res.send(result);
     });
 
@@ -257,6 +259,11 @@ async function run() {
       const id = req.params.id;
       const filter = { _id: new ObjectId(id) };
       const result = await classesCollection.findOne(filter);
+      res.send(result);
+    });
+
+    app.get("/allclasses", verifyJWT, verifyAdmin, async (req, res) => {
+      const result = await classesCollection.find().toArray();
       res.send(result);
     });
 
@@ -300,10 +307,58 @@ async function run() {
       res.send(result);
     });
 
+    app.patch("/updateclasses/:id", async (req, res) => {
+      const id = req.params.id;
+      const update = req.query.status;
+      console.log(update);
+      const feedback = req.body;
+      const filter = { _id: new ObjectId(id) };
+      const options = { upsert: true };
+
+      if (update === "approved") {
+        const updateDoc = {
+          $set: {
+            status: "approved",
+          },
+        };
+        const result = await classesCollection.updateOne(
+          filter,
+          updateDoc,
+          options
+        );
+        const instructor = await classesCollection.findOne(filter);
+        const instructorFilter = { email: instructor.email };
+        const updateInstructor = {
+          $inc: {
+            classes: 1,
+          },
+        };
+        const updateResult = await instructorsCollection.updateOne(
+          instructorFilter,
+          updateInstructor,
+          options
+        );
+        res.send(result);
+      }
+      if (update === "denied") {
+        const updateDoc = {
+          $set: {
+            status: "denied",
+            feedback: feedback.feedback || "N/A",
+          },
+        };
+        const result = await classesCollection.updateOne(
+          filter,
+          updateDoc,
+          options
+        );
+        res.send(result);
+      }
+    });
+
     // PAYMENT
     app.post("/payments", verifyJWT, async (req, res) => {
       const payment = req.body;
-      console.log(payment);
       const selectedClassId = payment.selectedClassId;
 
       const filter = { _id: new ObjectId(selectedClassId) };
@@ -312,6 +367,19 @@ async function run() {
       const classId = payment.courseId;
       const query = { _id: new ObjectId(classId) };
       const doc = await classesCollection.findOne(query);
+
+      console.log(doc);
+      const instructorEmail = doc.email;
+      const studentUpdate = {
+        $inc: {
+          total_students: 1,
+        },
+      };
+      const result = await instructorsCollection.updateOne(
+        { email: instructorEmail },
+        studentUpdate,
+        { upsert: true }
+      );
 
       const update = {
         $inc: {
